@@ -4,6 +4,7 @@ from django.urls import reverse
 
 from news.models import Comment
 
+
 def test_anon_comment(client, news):
     """Анонимный пользователь не может отправить комментарий
     и перенаправляется на вход
