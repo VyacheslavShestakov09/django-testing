@@ -9,6 +9,7 @@ from news.models import Comment, News
 
 User = get_user_model()
 
+
 @pytest.fixture(autouse=True)
 def enable_db(db):
     """Разрешаем доступ к БД для всех тестов"""
