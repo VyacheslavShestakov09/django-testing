@@ -1,37 +1,49 @@
 from django.conf import settings
-from django.urls import reverse
+import pytest
+
+from news.forms import CommentForm
 
 
-def test_news_count_homepage(client, create_eleven_news):
+@pytest.mark.django_db
+def test_news_count_homepage(client, excess_news, home_url):
     """Количество новостей на главной странице"""
-    response = client.get(reverse('news:home'))
+    response = client.get(home_url)
+    assert 'object_list' in response.context
     news_count = len(response.context['object_list'])
     assert news_count == settings.NEWS_COUNT_ON_HOME_PAGE
 
 
-def test_news_order(client, create_eleven_news):
+@pytest.mark.django_db
+def test_news_order(client, excess_news, home_url):
     """Новости отсортированы от свежей к старой"""
-    response = client.get(reverse('news:home'))
+    response = client.get(home_url)
+    assert 'object_list' in response.context
     news_list = response.context['object_list']
     dates = [news.date for news in news_list]
     assert dates == sorted(dates, reverse=True)
 
 
-def test_comments_order(client, news, create_comment_two):
+@pytest.mark.django_db
+def test_comments_order(client, news, comments_create, detail_url):
     """Комментарии отсортированы от старого к новому"""
-    response = client.get(reverse('news:detail', args=(news.pk,)))
+    response = client.get(detail_url)
+    assert 'news' in response.context
     comments = response.context['news'].comment_set.all()
     created_times = [comment.created for comment in comments]
     assert created_times == sorted(created_times)
 
 
-def test_comment_form_anon(client, news):
+@pytest.mark.django_db
+def test_comment_form_anon(client, news, detail_url):
     """Анон не видит форму коммента"""
-    response = client.get(reverse('news:detail', args=(news.pk,)))
+    response = client.get(detail_url)
     assert 'form' not in response.context
 
 
-def test_authorized_comment_form(reader_client, news):
+@pytest.mark.django_db
+def test_authorized_comment_form(reader_client, news, detail_url):
     """Авторизованный пользователь видит форму коммента"""
-    response = reader_client.get(reverse('news:detail', args=(news.pk,)))
+    response = reader_client.get(detail_url)
     assert 'form' in response.context
+    form = response.context['form']
+    assert isinstance(form, CommentForm)

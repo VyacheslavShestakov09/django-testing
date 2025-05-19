@@ -1,67 +1,74 @@
+from http import HTTPStatus
+
 import pytest
-
-from django.urls import reverse
-
-
-@pytest.mark.django_db
-def test_home_page(client):
-    """Доступ главной страницы анонимному пользователю"""
-    url = reverse('news:home')
-    response = client.get(url)
-    assert response.status_code == 200
+from pytest_django.asserts import assertRedirects
+from pytest_lazyfixture import lazy_fixture
 
 
 @pytest.mark.django_db
-def test_detail_page(client, news):
-    """Доступ к странице новости анонимному пользователю"""
-    url = reverse('news:detail', kwargs={'pk': news.pk})
+@pytest.mark.parametrize(
+    'url, args',
+    (
+        (lazy_fixture('home_url'), None),
+        (lazy_fixture('detail_url'), lazy_fixture('news')),
+    )
+)
+def test_pages_availability(client, url, args):
+    """Доступ страниц анонимному пользователю"""
     response = client.get(url)
-    assert response.status_code == 200
+    assert response.status_code == HTTPStatus.OK
 
 
-def test_comment_edit_delete_author(author_client, comment):
-    """Доступ страниц редактирования и удаления для автора"""
-    urls = [
-        reverse('news:edit', kwargs={'pk': comment.pk}),
-        reverse('news:delete', kwargs={'pk': comment.pk}),
-    ]
-    for url in urls:
-        response = author_client.get(url)
-        assert response.status_code == 200
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    'client, expected_status',
+    (
+        (lazy_fixture('author_client'), HTTPStatus.OK),
+        (lazy_fixture('reader_client'), HTTPStatus.NOT_FOUND),
+    )
+)
+@pytest.mark.parametrize(
+    'url',
+    (
+        lazy_fixture('edit_comment_url'),
+        lazy_fixture('delete_comment_url'),
+    )
+)
+def test_comment_edit_delete_availability(
+    client,
+    url,
+    expected_status
+):
+    """Доступ к редактированию/удалению комментариев"""
+    response = client.get(url)
+    assert response.status_code == expected_status
 
 
-def test_anonymous_redirected(client, comment):
-    """Проверяем редирект анонима на страницу логина"""
-    urls = [
-        reverse('news:edit', kwargs={'pk': comment.pk}),
-        reverse('news:delete', kwargs={'pk': comment.pk}),
-    ]
-    for url in urls:
-        login_url = reverse('users:login')
-        redirect_url = f'{login_url}?next={url}'
-        response = client.get(url)
-        assert response.status_code == 302
-        assert response.url == redirect_url
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    'url',
+    (
+        lazy_fixture('edit_comment_url'),
+        lazy_fixture('delete_comment_url'),
+    )
+)
+def test_anon_redirect(client, url, login_url):
+    """Редирект для анонимных пользователей"""
+    redirect_url = f'{login_url}?next={url}'
+    response = client.get(url)
+    assertRedirects(response, redirect_url)
 
 
-def test_comments(reader_client, comment):
-    """Тест запрета доступа к чужим комментариям"""
-    urls = [
-        reverse('news:edit', kwargs={'pk': comment.pk}),
-        reverse('news:delete', kwargs={'pk': comment.pk}),
-    ]
-    for url in urls:
-        response = reader_client.get(url)
-        assert response.status_code == 404
-
-
-def test_auth_pages_availability(client):
-    """Страницы регистрации, входа и выхода доступны анонимам"""
-    urls = [
-        reverse('users:login'),
-        reverse('users:signup'),
-        reverse('users:logout'),
-    ]
-    for url in urls:
-        response = client.get(url)
-        assert response.status_code == 200
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    'url',
+    (
+        lazy_fixture('login_url'),
+        lazy_fixture('signup_url'),
+        lazy_fixture('logout_url'),
+    )
+)
+def test_auth_pages_availability(client, url):
+    """Доступ страниц аутентификации"""
+    response = client.get(url)
+    assert response.status_code == HTTPStatus.OK
