@@ -129,24 +129,3 @@ def delete_comment_url(comment):
 def comment_form_data():
     """Форма комментария с текстом"""
     return {'text': 'Тест'}
-
-
-@pytest.fixture
-def form_data():
-    """Данные для создание/редактирования новости"""
-    return {
-        'title': 'Новый заголовок',
-        'text': 'Новый текст',
-        'date': datetime.today
-    }
-
-
-@pytest.fixture
-def original_comment_data(comment):
-    """Исходные данные коммента"""
-    return {
-        'author': comment.author,
-        'news': comment.news,
-        'created': comment.created,
-        'text': comment.text
-    }

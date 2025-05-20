@@ -1,5 +1,5 @@
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, Client
 from django.urls import reverse
 
 from notes.forms import NoteForm
@@ -10,28 +10,32 @@ User = get_user_model()
 
 class TestNoteListContent(TestCase):
     """Тесты контента страницы со списком заметок"""
-    LIST_URL = reverse('notes:list')
 
     @classmethod
     def setUpTestData(cls):
         cls.author = User.objects.create_user(username='Автор')
         cls.user = User.objects.create_user(username='Пользователь')
+        cls.author_client = Client()
+        cls.author_client.force_login(cls.author)
+        cls.user_client = Client()
+        cls.user_client.force_login(cls.user)
         cls.note = Note.objects.create(
             title='test note',
             text='text',
             slug='test-slug',
             author=cls.author
         )
+        cls.list_url = reverse('notes:list')
 
     def test_notes_content(self):
+        """Тест отображения заметок автору и юзеру"""
         watch_notes = (
-            (self.author, True),
-            (self.user, False),
+            (self.author_client, True),
+            (self.user_client, False),
         )
-        for user, expected_result in watch_notes:
-            with self.subTest(user=user.username):
-                self.client.force_login(user)
-                response = self.client.get(self.LIST_URL)
+        for client, expected_result in watch_notes:
+            with self.subTest(client=client):
+                response = client.get(self.list_url)
                 self.assertIs(
                     self.note in response.context['object_list'],
                     expected_result
@@ -40,23 +44,25 @@ class TestNoteListContent(TestCase):
 
 class TestNoteFormContent(TestCase):
     """Тесты наличия форм на страницах создания/редактирования"""
-    ADD_URL = reverse('notes:add')
 
     @classmethod
     def setUpTestData(cls):
         cls.author = User.objects.create_user(username='Автор')
+        cls.author_client = Client()
+        cls.author_client.force_login(cls.author)
         cls.note = Note.objects.create(
             title='test note',
             text='text',
             slug='test-slug',
             author=cls.author
         )
-        cls.EDIT_URL = reverse('notes:edit', args=(cls.note.slug,))
+        cls.add_url = reverse('notes:add')
+        cls.edit_url = reverse('notes:edit', args=(cls.note.slug,))
 
     def test_forms(self):
-        urls = (self.ADD_URL, self.EDIT_URL)
-        self.client.force_login(self.author)
+        """Тестируем наличие форм"""
+        urls = (self.add_url, self.edit_url)
         for url in urls:
             with self.subTest(url=url):
-                response = self.client.get(url)
+                response = self.author_client.get(url)
                 self.assertIsInstance(response.context['form'], NoteForm)

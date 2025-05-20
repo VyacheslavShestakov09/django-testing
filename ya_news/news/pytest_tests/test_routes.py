@@ -7,14 +7,17 @@ from pytest_lazyfixture import lazy_fixture
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    'url, args',
+    'url',
     (
-        (lazy_fixture('home_url'), None),
-        (lazy_fixture('detail_url'), lazy_fixture('news')),
+        lazy_fixture('home_url'),
+        lazy_fixture('detail_url'),
+        lazy_fixture('login_url'),
+        lazy_fixture('signup_url'),
+        lazy_fixture('logout_url'),
     )
 )
-def test_pages_availability(client, url, args):
-    """Доступ страниц анонимному пользователю"""
+def test_public_pages(client, url):
+    """Проверка общедоступных страниц"""
     response = client.get(url)
     assert response.status_code == HTTPStatus.OK
 
@@ -57,18 +60,3 @@ def test_anon_redirect(client, url, login_url):
     redirect_url = f'{login_url}?next={url}'
     response = client.get(url)
     assertRedirects(response, redirect_url)
-
-
-@pytest.mark.django_db
-@pytest.mark.parametrize(
-    'url',
-    (
-        lazy_fixture('login_url'),
-        lazy_fixture('signup_url'),
-        lazy_fixture('logout_url'),
-    )
-)
-def test_auth_pages_availability(client, url):
-    """Доступ страниц аутентификации"""
-    response = client.get(url)
-    assert response.status_code == HTTPStatus.OK
